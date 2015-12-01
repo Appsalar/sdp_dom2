@@ -1,14 +1,36 @@
+/*
+Иван Велков група 2 ФН:45039
+
+Извинявам се за забавеното предаване, нямах интернет и нямаше 
+как да предам домашното. Говорих с Армянов и той каза, че 
+няма проблем.
+
+Не знам дали валидацията на входа е нужна. направих я за всеки
+случай и е сръдливо животно.
+
+
+*/
+
+
+
+
 #include <iostream>
 #include <vector>
-
-
+#include "Tail.h"
 
 #define SIZE 10
+
 
 struct position
 {
 	size_t row;
 	size_t col;
+
+	position()
+	{
+		row = 0;
+		col = 0;
+	}
 
 	position(size_t row, size_t col)
 	{
@@ -16,17 +38,54 @@ struct position
 		this->col = col;
 	}
 
+	position(const position& other)
+	{
+		this->row = other.row;
+		this->col = other.col;
+	}
+	
+	position& operator=(const position& other)
+	{
+		this->row = other.row;
+		this->col = other.col;
+		return *this;
+	}
+
+	~position()
+	{}
+
 	void print()
 	{
-		printf_s("( %d, %d ) ", row, col);
+		printf("( %d, %d ) ", row, col);
 	}
 };
 
-bool dfs(char** arr, position pos, position final, size_t size, std::vector<std::vector<position>*>* pathArr);
+typedef std::vector<position> path;
+typedef std::vector<path*> roads;
 
+inline void printlab(char** arr, int n, int m)
+{
+	for (size_t i = 0; i < n; ++i)
+	{
+		for (size_t j = 0; j < m; ++j)
+		{
+			std::cout << arr[i][j] << "  ";
+		}
+		std::cout << std::endl;
+	}
+
+	std::cout << std::endl;
+	std::cout << "----------------------------------------------------";
+	std::cout << std::endl;
+}
+
+bool dfs(char** arr, position pos, position final, int n, int m, roads* pathArr);
+void bfs(char** arr, position pos, int n, int m, Tail<position>* destinations);
+
+void sort(roads* pathArr);
 /*
 
-1 - discovered
+@ - discovered
 . - not yet discovered
 # - can't pass
 X - shit cell
@@ -37,59 +96,175 @@ X - shit cell
 int main()
 
 {
-	char** lab = new char*[SIZE];
-	for (size_t i = 0; i < SIZE; ++i)
-		lab[i] = new char[SIZE];
 
-	for (size_t i = 0; i < SIZE; ++i)
+	int n;
+	int m;
+
+	std::cin >> n >> m;
+	if (n <= 0 || m <= 0)
+		return -1;
+
+
+	char** lab = new char*[n];
+	for (size_t i = 0; i < n; ++i)
 	{
-		for (size_t j = 0; j < SIZE; ++j)
+		char buf[255];
+		std::cin >> buf;
+		if (strlen(buf) < n)
+			return -1;
+		lab[i] = _strdup(buf);
+	}
+
+	for (size_t i = 0; i < n; ++i)
+	{
+		for (size_t j = 0; j < m; ++j)
 		{
-			if (i == 0 || i == SIZE - 1 || j == 0 || j == SIZE - 1)
-				lab[i][j] = '#';
+			if (lab[i][j] != '#' && lab[i][j] != '.')
+				return -1;
+		}
+	}
+
+	int a, b;
+	std::cin >> a >> b;
+	if (a < 0 || a >= n ||
+		b < 0 || b >= m)
+		return -1;
+
+	position pos;
+
+	pos.row = a;
+	pos.col = b;
+
+	/*
+	for (size_t i = 0; i < n; ++i)
+	{
+		for (size_t j = 0; j < m; ++j)
+		{
+			lab[i][j] = rand() % 3 == 1 ? '#' : '.';
+			/*if (i == 0 || i == n - 1 || j == 0 || j == m - 1)
+				;//lab[i][j] = '#';
 			else
-			{
-				lab[i][j] = rand() % 3 == 1 ? '#' : '.';
-			}
 		}
-
 	}
-
 	lab[6][7] = '.';
+	lab[6][6] = '.';
 
-	for (size_t i = 0; i < SIZE; ++i)
+	lab[0] = _strdup("###");
+	lab[1] = _strdup("#..");
+	lab[2] = _strdup("#..");
+
+	pos.row = 1;
+	pos.col = 1;
+	*/
+
+	//printlab(lab, n, m);
+
+	Tail<position> destinations;
+
+	std::vector<roads*> pathArr;
+
+
+	bfs(lab, pos, n, m, &destinations);
+	while (!destinations.empty())
 	{
-		for (size_t j = 0; j < SIZE; ++j)
-		{
-			std::cout << lab[i][j] << "  ";
-		}
-		std::cout << std::endl;
+		destinations.top().print();
+		pathArr.push_back(new roads);
+		pathArr.back()->push_back(new path);
+		dfs(lab, pos, destinations.top(), n, m, pathArr.back());
+		destinations.pop();
 	}
 	std::cout << std::endl;
-	std::cout << "----------------------------------------------------";
-	std::cout << std::endl;
 
-	std::vector<position> path;
-	std::vector<std::vector<position>*> pathArr;
-	pathArr.push_back(&path);
+	for (size_t i = 0; i < n; ++i)
+		delete[] lab[i];
+	delete lab;
 
-	bool isPath = dfs(lab, position(1, 1), position(6, 7), SIZE, &pathArr);
+	/*
+	pathArr.push_back(new roads);
+	pathArr.back()->push_back(new path);
+	bool isPath = dfs(lab, pos, position(6, 7), n, m, pathArr.back());
+	*/
 
-	for (size_t i = 0; i < path.size(); ++i)
-		pathArr.at(pathArr.size() - 1)->at(i).print();
+	for (size_t j = 0; j < pathArr.size(); ++j)
+	{
+		pathArr.at(j)->back()->back().print();
+		std::cout << std::endl;
+		sort(pathArr[j]);
+
+		for (size_t k = 0; k < pathArr.at(j)->size(); ++k)
+		{
+			for (size_t i = 0; i < pathArr.at(j)->at(k)->size(); ++i)
+				pathArr.at(j)->at(k)->at(i).print();
+			std::cout << std::endl;
+		}
+		//std::cout << pathArr.at(j)->size() << std::endl;
+	}
+
+	for (size_t i = 0; i < pathArr.size(); ++i)
+	{
+		for (size_t j = 0; j < pathArr.at(j)->size(); ++j)
+		{
+			delete pathArr.at(i)->at(j);
+		}
+		delete pathArr.at(i);
+	}
 
 	return 0;
+
 }
 
 int dRow[] = { -1, 0, 1, 0 };
 int dCol[] = { 0, -1, 0, 1 };
 
-
-
-bool dfs(char** arr, position pos, position final, size_t size, std::vector<std::vector<position>*>* pathArr)
+void bfs(char** arr, position pos, int n, int m, Tail<position>* destinations)
 {
+	Tail<position> Wave;
+	Wave.push(pos);
+	arr[pos.row][pos.col] = '@';
 
-	pathArr->at(pathArr->size()-1)->push_back(pos);
+	while (!Wave.empty())
+	{
+		for (size_t i = 0; i < 4; ++i)
+		{
+			int newRow = Wave.top().row + dRow[i];
+			int newCol = Wave.top().col + dCol[i];
+
+			if (newRow >= 0 && newRow < n &&
+				newCol >= 0 && newCol < m)
+			{
+				char* foo;
+				foo = &arr[newRow][newCol];
+				if (*foo == '.')
+				{
+					*foo = '@';
+					position nextpos(newRow, newCol);
+					Wave.push(nextpos);
+					destinations->push(nextpos);
+				}
+			}
+		}
+		Wave.pop();
+		//printlab(arr, n, m);
+	}
+
+	//printlab(arr, n, m);
+	for (size_t i = 0; i < n; ++i)
+	{
+		for (size_t j = 0; j < m; ++j)
+		{
+			if (arr[i][j] == '@')
+				arr[i][j] = '.';
+		}
+	}
+	//printlab(arr, n, m);
+}
+
+bool dfs(char** arr, position pos, position final, int n, int m, roads* pathArr)
+{
+	//if (pathArr->size() > 4)
+		//return false;
+
+	pathArr->back()->push_back(pos);
 
 	if (pos.row == final.row && pos.col == final.col)
 		return true;
@@ -98,47 +273,94 @@ bool dfs(char** arr, position pos, position final, size_t size, std::vector<std:
 		arr[pos.row][pos.col] == 'X' ||
 		arr[pos.row][pos.col] == '@')
 	{
-		pathArr->at(pathArr->size() - 1)->pop_back();
+		pathArr->back()->pop_back();
+		if (pathArr->back()->size() == 0)
+			pathArr->pop_back();
 		return false;
 	}
 
 	if (arr[pos.row][pos.col] == '.')
 	{
-		arr[pos.row][pos.col] = 1;
+		arr[pos.row][pos.col] = '@';
 
-		for (size_t i = 0; i < size; ++i)
-		{
-			for (size_t j = 0; j < size; ++j)
-			{
-				std::cout << arr[i][j] << "  ";
-			}
-			std::cout << std::endl;
-		}
-
-		std::cout << std::endl;
-		std::cout << "----------------------------------------------------";
-		std::cout << std::endl;
+		//printlab(arr, n, m);
 
 		for (size_t i = 0; i < 4; ++i)
 		{
-			size_t newRow = pos.row + dRow[i];
-			size_t newCol = pos.col + dCol[i];
+			int newRow = pos.row + dRow[i];
+			int newCol = pos.col + dCol[i];
 
-			char* foo;
-			foo = &arr[newRow][newCol];
-
-			if (*foo == '.')
+			if (newRow >= 0 && newRow < n &&
+				newCol >= 0 && newCol < m)
 			{
-				if (dfs(arr, position(newRow, newCol), final, size, pathArr) == true)
+				char* foo;
+				foo = &arr[newRow][newCol];
+				if (*foo == '.')
 				{
-					//arr[pos.row][pos.col] = '@';
-					return true;
+					if (dfs(arr, position(newRow, newCol), final, n, m, pathArr) == true)
+					{
+						*foo = '.';
+						//return true;
+						pathArr->push_back(new path);
+						path* temp = pathArr->at(pathArr->size() - 2);
+						*(pathArr->back()) = *temp;
+						/*while(pathArr->back()->back()!= pos)
+						{
+						position bar=pathArr->back()->back();
+						arr[bar.row][bar.col]='@';
+						pathArr->back()->pop_back();
+						}
+						*/
+						//position bar=pathArr->back()->back();
+						//arr[bar.row][bar.col]='.';
+						pathArr->back()->pop_back();
+
+					}
 				}
 			}
 		}
 	}
-	arr[pos.row][pos.col] = 'X';
+	//arr[pos.row][pos.col] = 'X';
+	arr[pos.row][pos.col] = '.';
 
-	pathArr->at(pathArr->size() - 1)->pop_back();
+	pathArr->back()->pop_back();
+	if (pathArr->back()->size() == 0)
+		pathArr->pop_back();
 	return false;
+}
+
+void swapif(path* a, path* b)
+{
+	if (a->size() > b->size())
+	{
+		path* temp = a;
+		a = b;
+		b = temp;
+	}
+}
+
+void sort(roads* pathArr)
+{
+	for (size_t i = pathArr->size() - 1; i != 0; --i)
+	{
+		if (pathArr->at(i - 1)->size() > pathArr->at(i)->size())
+		{
+			path* foo = pathArr->at(i - 1);
+			pathArr->at(i - 1) = pathArr->at(i);
+			pathArr->at(i) = foo;
+		}
+	}
+
+	for (size_t i = 2; i < pathArr->size(); ++i)
+	{
+		path* foo = pathArr->at(i);
+
+		size_t j = i;
+		while (pathArr->at(j)->size()>foo->size())
+		{
+			pathArr->at(j) = pathArr->at(j - 1);
+			--j;
+		}
+		pathArr->at(j) = foo;
+	}
 }
